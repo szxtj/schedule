@@ -8,6 +8,7 @@ import '../../providers/dashboard_provider.dart';
 import '../../providers/focus_timer_provider.dart';
 import '../../providers/task_provider.dart';
 import '../dialogs/add_task_dialog.dart';
+import '../dialogs/data_sync_dialog.dart';
 import '../focus/focus_screen.dart';
 import 'focus_records_view.dart';
 import 'widgets/sidebar.dart';
@@ -49,6 +50,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final timerState = ref.watch(focusTimerProvider);
     final todayKey = AppDateUtils.todayKey();
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 650;
+        if (isMobile) {
+          return _buildMobileLayout(
+            context,
+            metrics,
+            allTasks,
+            timerState,
+            todayKey,
+          );
+        }
+        return _buildDesktopLayout(
+          context,
+          metrics,
+          allTasks,
+          timerState,
+          todayKey,
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopLayout(
+    BuildContext context,
+    DashboardMetrics metrics,
+    List<Task> allTasks,
+    FocusTimerState timerState,
+    String todayKey,
+  ) {
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
       body: Row(
@@ -81,6 +112,164 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(
+    BuildContext context,
+    DashboardMetrics metrics,
+    List<Task> allTasks,
+    FocusTimerState timerState,
+    String todayKey,
+  ) {
+    int navIndex = 0;
+    if (_currentSection == SidebarNavSection.today) {
+      navIndex = 0;
+    } else if (_currentSection == SidebarNavSection.records) {
+      navIndex = 2;
+    } else {
+      navIndex = 1;
+    }
+
+    final primarySession =
+        timerState.runningSession ?? timerState.pausedSessions.firstOrNull;
+
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              AppConstants.appName,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimaryLight,
+              ),
+            ),
+            Text(
+              AppDateUtils.formatDisplayDate(DateTime.now()),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondaryLight,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // 活跃任务快速胶囊
+          if (primarySession != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ActionChip(
+                visualDensity: VisualDensity.compact,
+                avatar: Icon(
+                  primarySession.status == FocusTimerStatus.running
+                      ? Icons.timer_outlined
+                      : Icons.pause_circle_outline_rounded,
+                  size: 16,
+                  color: primarySession.status == FocusTimerStatus.running
+                      ? AppColors.accent
+                      : AppColors.warning,
+                ),
+                label: Text(
+                  AppDateUtils.formatSecondsToTime(
+                    primarySession.remainingSeconds,
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: primarySession.status == FocusTimerStatus.running
+                        ? AppColors.accent
+                        : AppColors.warning,
+                  ),
+                ),
+                backgroundColor:
+                    (primarySession.status == FocusTimerStatus.running
+                            ? AppColors.accent
+                            : AppColors.warning)
+                        .withValues(alpha: 0.1),
+                side: BorderSide(
+                  color:
+                      (primarySession.status == FocusTimerStatus.running
+                              ? AppColors.accent
+                              : AppColors.warning)
+                          .withValues(alpha: 0.3),
+                ),
+                onPressed: () => _openFocusScreen(primarySession.sessionKey),
+              ),
+            ),
+          // 数据互通与备份
+          IconButton(
+            icon: const Icon(
+              Icons.swap_horiz_rounded,
+              color: AppColors.textSecondaryLight,
+              size: 22,
+            ),
+            tooltip: '跨端数据备份与互通',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const DataSyncDialog(),
+              );
+            },
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: Column(
+        children: [
+          if (timerState.hasActiveSessions)
+            _buildActiveFocusBanner(timerState, isMobile: true),
+          Expanded(
+            child: _currentSection == SidebarNavSection.records
+                ? const FocusRecordsView()
+                : _buildTasksView(allTasks, metrics, todayKey, isMobile: true),
+          ),
+        ],
+      ),
+      floatingActionButton: _currentSection != SidebarNavSection.records
+          ? FloatingActionButton(
+              onPressed: _openAddTaskDialog,
+              backgroundColor: AppColors.primary,
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            )
+          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            if (index == 0) _currentSection = SidebarNavSection.today;
+            if (index == 1) _currentSection = SidebarNavSection.all;
+            if (index == 2) _currentSection = SidebarNavSection.records;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today_rounded),
+            label: '今日计划',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.check_circle_outline_rounded),
+            selectedIcon: Icon(Icons.check_circle_rounded),
+            label: '全部任务',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics_rounded),
+            label: '专注记录',
           ),
         ],
       ),
@@ -148,7 +337,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   /// 正在进行/暂停状态条（支持直接切入任务界面）
-  Widget _buildActiveFocusBanner(FocusTimerState timerState) {
+  Widget _buildActiveFocusBanner(
+    FocusTimerState timerState, {
+    bool isMobile = false,
+  }) {
     final running = timerState.runningSession;
     final pausedList = timerState.pausedSessions;
 
@@ -166,7 +358,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       color: isRunning
           ? AppColors.accent.withValues(alpha: 0.15)
           : AppColors.warning.withValues(alpha: 0.15),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 24,
+        vertical: isMobile ? 8 : 10,
+      ),
       child: Row(
         children: [
           Icon(
@@ -174,15 +369,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ? Icons.play_circle_fill_rounded
                 : Icons.pause_circle_filled_rounded,
             color: isRunning ? AppColors.accent : AppColors.warning,
-            size: 22,
+            size: isMobile ? 18 : 22,
           ),
-          const SizedBox(width: 10),
+          SizedBox(width: isMobile ? 8 : 10),
           Expanded(
             child: Text(
-              '${isRunning ? "任务进行中" : "任务已暂停"}：【$taskName】 · 倒计时 $timeStr · 实际已专注 ${AppDateUtils.formatSecondsToTime(primarySession.actualElapsedSeconds)}'
-              '${pausedList.isNotEmpty && isRunning ? " (另有 ${pausedList.length} 项已暂停)" : ""}',
+              isMobile
+                  ? '${isRunning ? "进行中" : "已暂停"}：$taskName · $timeStr'
+                  : '${isRunning ? "任务进行中" : "任务已暂停"}：【$taskName】 · 倒计时 $timeStr · 实际已专注 ${AppDateUtils.formatSecondsToTime(primarySession.actualElapsedSeconds)}'
+                        '${pausedList.isNotEmpty && isRunning ? " (另有 ${pausedList.length} 项已暂停)" : ""}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: isMobile ? 12 : 13,
                 fontWeight: FontWeight.w600,
                 color: isRunning ? AppColors.accent : Colors.amber[900],
               ),
@@ -190,23 +389,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
           if (!isRunning)
             Padding(
-              padding: const EdgeInsets.only(right: 8.0),
+              padding: const EdgeInsets.only(right: 6.0),
               child: FilledButton.tonal(
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.accent.withValues(alpha: 0.2),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 8 : 10,
+                    vertical: isMobile ? 4 : 6,
                   ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 onPressed: () {
                   ref
                       .read(focusTimerProvider.notifier)
                       .resumeSession(primarySession.sessionKey);
                 },
-                child: const Text(
-                  '继续进行',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                child: Text(
+                  '继续',
+                  style: TextStyle(
+                    fontSize: isMobile ? 11 : 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -214,13 +418,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             style: TextButton.styleFrom(
               foregroundColor: isRunning ? AppColors.accent : Colors.amber[900],
               backgroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 8 : 12,
+                vertical: isMobile ? 4 : 6,
+              ),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             onPressed: () => _openFocusScreen(primarySession.sessionKey),
-            icon: const Icon(Icons.fullscreen_rounded, size: 18),
-            label: const Text(
-              '切入任务大屏',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            icon: Icon(Icons.fullscreen_rounded, size: isMobile ? 16 : 18),
+            label: Text(
+              isMobile ? '切入' : '切入任务大屏',
+              style: TextStyle(
+                fontSize: isMobile ? 11 : 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -231,25 +443,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildTasksView(
     List<Task> allTasks,
     DashboardMetrics metrics,
-    String todayKey,
-  ) {
+    String todayKey, {
+    bool isMobile = false,
+  }) {
     // 过滤任务列表
     final displayedTasks = _filterTasks(allTasks);
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 14 : 24),
       children: [
         // 今日看板时，展示四大核心指标卡片
         if (_currentSection == SidebarNavSection.today) ...[
-          DashboardSummaryCards(metrics: metrics),
-          const SizedBox(height: 24),
+          DashboardSummaryCards(metrics: metrics, isCompact: isMobile),
+          SizedBox(height: isMobile ? 14 : 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 '今日任务列表',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: isMobile ? 15 : 16,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimaryLight,
                 ),
@@ -263,7 +476,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 8 : 12),
         ],
         if (displayedTasks.isEmpty)
           Container(

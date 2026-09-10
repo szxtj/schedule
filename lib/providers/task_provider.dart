@@ -21,6 +21,8 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     state = tasks;
   }
 
+  Future<void> reload() async => _load();
+
   Future<void> _save() async {
     await _repository.saveTasks(state);
   }

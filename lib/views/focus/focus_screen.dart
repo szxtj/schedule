@@ -55,56 +55,156 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
       orElse: () => session.targetTask,
     );
 
-    return Scaffold(
-      backgroundColor: AppColors.focusBackground,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 顶部导航栏（包含返回主页按钮）
-            _buildTopBar(context, isPaused, isRunning),
-            // 主体内容
-            Expanded(
-              child: Row(
-                children: [
-                  // 左侧或中央：大倒计时表盘与控制
-                  Expanded(
-                    flex: 5,
-                    child: Center(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildTaskHeader(currentTask, session),
-                            const SizedBox(height: 32),
-                            _buildTimerRing(session),
-                            const SizedBox(height: 32),
-                            _buildActionControls(session, isRunning, isPaused),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 右侧（若进行整项任务）：子任务清单，支持实时勾选并智能缩减倒计时
-                  if (!isSingleSubtask) ...[
-                    Container(
-                      width: 1,
-                      color: Colors.white12,
-                      margin: const EdgeInsets.symmetric(vertical: 40),
-                    ),
-                    Expanded(
-                      flex: 4,
-                      child: _buildSubtasksSidebar(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: AppColors.focusBackground,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 顶部导航栏（包含返回主页按钮）
+              _buildTopBar(context, isPaused, isRunning),
+              // 主体内容
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 650;
+                    if (isNarrow) {
+                      return _buildNarrowLayout(
                         session,
                         currentTask,
                         todayKey,
-                      ),
-                    ),
-                  ],
+                        isSingleSubtask,
+                        isRunning,
+                        isPaused,
+                      );
+                    }
+                    return _buildWideLayout(
+                      session,
+                      currentTask,
+                      todayKey,
+                      isSingleSubtask,
+                      isRunning,
+                      isPaused,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWideLayout(
+    TaskSession session,
+    Task currentTask,
+    String todayKey,
+    bool isSingleSubtask,
+    bool isRunning,
+    bool isPaused,
+  ) {
+    return Row(
+      children: [
+        // 左侧或中央：大倒计时表盘与控制
+        Expanded(
+          flex: 5,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildTaskHeader(currentTask, session),
+                  const SizedBox(height: 32),
+                  _buildTimerRing(session, isCompact: false),
+                  const SizedBox(height: 32),
+                  _buildActionControls(session, isRunning, isPaused),
                 ],
               ),
             ),
-          ],
+          ),
         ),
+        // 右侧（若进行整项任务）：子任务清单，支持实时勾选并智能缩减倒计时
+        if (!isSingleSubtask) ...[
+          Container(
+            width: 1,
+            color: Colors.white12,
+            margin: const EdgeInsets.symmetric(vertical: 40),
+          ),
+          Expanded(
+            flex: 4,
+            child: _buildSubtasksSidebar(session, currentTask, todayKey),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout(
+    TaskSession session,
+    Task currentTask,
+    String todayKey,
+    bool isSingleSubtask,
+    bool isRunning,
+    bool isPaused,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      child: Column(
+        children: [
+          _buildTaskHeader(currentTask, session),
+          const SizedBox(height: 20),
+          _buildTimerRing(session, isCompact: true),
+          const SizedBox(height: 20),
+          _buildActionControls(session, isRunning, isPaused),
+          if (!isSingleSubtask) ...[
+            const SizedBox(height: 28),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(
+                  Icons.checklist_rtl_rounded,
+                  color: AppColors.primaryLight,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  '子任务清单',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    '勾选即智能减少倒计时',
+                    style: TextStyle(color: Colors.white60, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildSubtasksItemsList(
+              session,
+              currentTask,
+              todayKey,
+              shrinkWrap: true,
+            ),
+            const SizedBox(height: 24),
+          ],
+        ],
       ),
     );
   }
@@ -209,20 +309,21 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     );
   }
 
-  Widget _buildTimerRing(TaskSession session) {
+  Widget _buildTimerRing(TaskSession session, {bool isCompact = false}) {
     final remaining = session.remainingSeconds;
     final timeStr = AppDateUtils.formatSecondsToTime(remaining);
     final ratio = session.progressRatio;
+    final size = isCompact ? 220.0 : 280.0;
 
     return Stack(
       alignment: Alignment.center,
       children: [
         SizedBox(
-          width: 280,
-          height: 280,
+          width: size,
+          height: size,
           child: CircularProgressIndicator(
             value: 1.0 - ratio, // 倒计时递减
-            strokeWidth: 12,
+            strokeWidth: isCompact ? 10 : 12,
             backgroundColor: Colors.white10,
             valueColor: AlwaysStoppedAnimation<Color>(
               session.status == FocusTimerStatus.running
@@ -236,18 +337,21 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
           children: [
             Text(
               timeStr,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 54,
+                fontSize: isCompact ? 42 : 54,
                 fontWeight: FontWeight.w300,
                 letterSpacing: 2,
-                fontFeatures: [FontFeature.tabularFigures()],
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               '实际专注: ${AppDateUtils.formatSecondsToTime(session.actualElapsedSeconds)}',
-              style: const TextStyle(color: Colors.white60, fontSize: 13),
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: isCompact ? 12 : 13,
+              ),
             ),
             if (session.extendedSeconds > 0)
               Text(
@@ -447,99 +551,93 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: ListView.separated(
-              itemCount: task.subtasks.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final st = task.subtasks[index];
-                final isDone = st.isCompletedOn(todayKey);
-
-                return Container(
-                  decoration: BoxDecoration(
-                    color: isDone
-                        ? Colors.white.withValues(alpha: 0.04)
-                        : Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDone ? Colors.white10 : Colors.white24,
-                    ),
-                  ),
-                  child: CheckboxListTile(
-                    value: isDone,
-                    activeColor: AppColors.accent,
-                    checkColor: Colors.white,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: Text(
-                      st.title,
-                      style: TextStyle(
-                        color: isDone ? Colors.white38 : Colors.white,
-                        decoration: isDone ? TextDecoration.lineThrough : null,
-                        fontSize: 14,
-                        fontWeight: isDone
-                            ? FontWeight.normal
-                            : FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '预计需用时: ${st.estimatedMinutes} 分钟',
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 12,
-                      ),
-                    ),
-                    secondary: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${st.estimatedMinutes}m',
-                        style: const TextStyle(
-                          color: AppColors.primaryLight,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    onChanged: isDone
-                        ? null // 已完成无需再次勾选，避免重复触发
-                        : (val) async {
-                            if (val == true) {
-                              await ref
-                                  .read(focusTimerProvider.notifier)
-                                  .checkSubtaskInSession(
-                                    session.sessionKey,
-                                    st.id,
-                                  );
-
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    backgroundColor: AppColors.accent,
-                                    duration: const Duration(seconds: 2),
-                                    content: Text(
-                                      '已完成【${st.title}】！倒计时已智能更新为紧凑预估时间。',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                  ),
-                );
-              },
-            ),
-          ),
+          Expanded(child: _buildSubtasksItemsList(session, task, todayKey)),
         ],
       ),
+    );
+  }
+
+  Widget _buildSubtasksItemsList(
+    TaskSession session,
+    Task task,
+    String todayKey, {
+    bool shrinkWrap = false,
+  }) {
+    return ListView.separated(
+      shrinkWrap: shrinkWrap,
+      physics: shrinkWrap ? const NeverScrollableScrollPhysics() : null,
+      itemCount: task.subtasks.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final st = task.subtasks[index];
+        final isDone = st.isCompletedOn(todayKey);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: isDone
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isDone ? Colors.white10 : Colors.white24),
+          ),
+          child: CheckboxListTile(
+            value: isDone,
+            activeColor: AppColors.accent,
+            checkColor: Colors.white,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(
+              st.title,
+              style: TextStyle(
+                color: isDone ? Colors.white38 : Colors.white,
+                decoration: isDone ? TextDecoration.lineThrough : null,
+                fontSize: 14,
+                fontWeight: isDone ? FontWeight.normal : FontWeight.w500,
+              ),
+            ),
+            subtitle: Text(
+              '预计需用时: ${st.estimatedMinutes} 分钟',
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+            secondary: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${st.estimatedMinutes}m',
+                style: const TextStyle(
+                  color: AppColors.primaryLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            onChanged: isDone
+                ? null
+                : (val) async {
+                    if (val == true) {
+                      await ref
+                          .read(focusTimerProvider.notifier)
+                          .checkSubtaskInSession(session.sessionKey, st.id);
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: AppColors.accent,
+                            duration: const Duration(seconds: 2),
+                            content: Text(
+                              '已完成【${st.title}】！倒计时已智能更新为紧凑预估时间。',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+          ),
+        );
+      },
     );
   }
 

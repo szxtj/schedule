@@ -20,6 +20,8 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
     state = sessions;
   }
 
+  Future<void> reload() async => _load();
+
   Future<void> logSession(FocusSession session) async {
     await _repository.addSession(session);
     state = [session, ...state];

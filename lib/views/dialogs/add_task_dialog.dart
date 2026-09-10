@@ -176,13 +176,20 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       (sum, d) => sum + d.estimatedMinutes,
     );
 
+    final isNarrow = MediaQuery.of(context).size.width < 500;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isNarrow ? 16 : 40,
+        vertical: 20,
+      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 720),
+        constraints: BoxConstraints(
+          maxWidth: 620,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(isNarrow ? 18.0 : 24.0),
           child: Form(
             key: _formKey,
             child: Column(

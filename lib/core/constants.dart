@@ -36,6 +36,9 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B); // Amber
   static const Color danger = Color(0xFFEF4444); // Rose/Red
 
+  static const Color success = accent;
+  static const Color error = danger;
+
   static const Color backgroundLight = Color(0xFFF8FAFC); // Slate 50
   static const Color surfaceLight = Colors.white;
   static const Color borderLight = Color(0xFFE2E8F0); // Slate 200

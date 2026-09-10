@@ -148,4 +148,39 @@ class StorageService {
       return false;
     }
   }
+
+  /// 导出全部数据为 JSON 字符串（包含任务列表与专注记录）
+  Future<String> exportAllDataAsJson() async {
+    final tasksData = await readJson('tasks.json') ?? [];
+    final focusData = await readJson('focus_sessions.json') ?? [];
+    final exportMap = {
+      'version': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'tasks': tasksData,
+      'focus_sessions': focusData,
+    };
+    return const JsonEncoder.withIndent('  ').convert(exportMap);
+  }
+
+  /// 从 JSON 字符串恢复/导入全部数据
+  Future<bool> importDataFromJson(String jsonString) async {
+    try {
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map<String, dynamic>) return false;
+
+      final tasks = decoded['tasks'];
+      if (tasks is List) {
+        await writeJson('tasks.json', tasks);
+      }
+
+      final sessions = decoded['focus_sessions'];
+      if (sessions is List) {
+        await writeJson('focus_sessions.json', sessions);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error importing data: $e');
+      return false;
+    }
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../providers/dashboard_provider.dart';
+import '../../dialogs/data_sync_dialog.dart';
 
 enum SidebarNavSection { today, daily, weekly, all, records }
 
@@ -142,6 +143,36 @@ class DashboardSidebar extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 6),
+          // 底部数据互通与备份按钮
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: ListTile(
+              dense: true,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              leading: const Icon(
+                Icons.swap_horiz_rounded,
+                size: 18,
+                color: AppColors.textSecondaryLight,
+              ),
+              title: const Text(
+                '数据备份与互通',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondaryLight,
+                ),
+              ),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const DataSyncDialog(),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

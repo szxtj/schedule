@@ -5,16 +5,22 @@ import '../../../providers/dashboard_provider.dart';
 
 class DashboardSummaryCards extends StatelessWidget {
   final DashboardMetrics metrics;
+  final bool? isCompact;
 
-  const DashboardSummaryCards({super.key, required this.metrics});
+  const DashboardSummaryCards({
+    super.key,
+    required this.metrics,
+    this.isCompact,
+  });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 桌面端双行或单行响应式排版
+        // 桌面端宽屏（>900）为单行4张卡片；普通屏幕与移动端（<=900）为 2x2 网格
         final isWide = constraints.maxWidth > 900;
-        return isWide ? _buildWideRow() : _buildWrappedGrid();
+        final compact = isCompact ?? (constraints.maxWidth < 500);
+        return isWide ? _buildWideRow() : _buildWrappedGrid(compact);
       },
     );
   }
@@ -23,36 +29,37 @@ class DashboardSummaryCards extends StatelessWidget {
     return Row(
       children: [
         // 核心卡片 1：今日计划完成度百分比
-        Expanded(flex: 3, child: _buildCompletionRateCard()),
+        Expanded(flex: 3, child: _buildCompletionRateCard(false)),
         const SizedBox(width: 14),
         // 核心卡片 2：剩余预计时间
-        Expanded(flex: 2, child: _buildRemainingTimeCard()),
+        Expanded(flex: 2, child: _buildRemainingTimeCard(false)),
         const SizedBox(width: 14),
         // 核心卡片 3：剩余子任务数
-        Expanded(flex: 2, child: _buildRemainingSubtasksCard()),
+        Expanded(flex: 2, child: _buildRemainingSubtasksCard(false)),
         const SizedBox(width: 14),
         // 核心卡片 4：今日总专注时长 (实际打卡)
-        Expanded(flex: 3, child: _buildFocusDurationCard()),
+        Expanded(flex: 3, child: _buildFocusDurationCard(false)),
       ],
     );
   }
 
-  Widget _buildWrappedGrid() {
+  Widget _buildWrappedGrid(bool isCompact) {
+    final gap = isCompact ? 10.0 : 14.0;
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _buildCompletionRateCard()),
-            const SizedBox(width: 14),
-            Expanded(child: _buildFocusDurationCard()),
+            Expanded(child: _buildCompletionRateCard(isCompact)),
+            SizedBox(width: gap),
+            Expanded(child: _buildFocusDurationCard(isCompact)),
           ],
         ),
-        const SizedBox(height: 14),
+        SizedBox(height: gap),
         Row(
           children: [
-            Expanded(child: _buildRemainingTimeCard()),
-            const SizedBox(width: 14),
-            Expanded(child: _buildRemainingSubtasksCard()),
+            Expanded(child: _buildRemainingTimeCard(isCompact)),
+            SizedBox(width: gap),
+            Expanded(child: _buildRemainingSubtasksCard(isCompact)),
           ],
         ),
       ],
@@ -60,9 +67,9 @@ class DashboardSummaryCards extends StatelessWidget {
   }
 
   /// 今日总任务计划完成度百分比（按已完成每项子任务的预计时间总和除以总预计时间来计算）
-  Widget _buildCompletionRateCard() {
+  Widget _buildCompletionRateCard(bool isCompact) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isCompact ? 12 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -78,14 +85,14 @@ class DashboardSummaryCards extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 58,
-            height: 58,
+            width: isCompact ? 46 : 58,
+            height: isCompact ? 46 : 58,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 CircularProgressIndicator(
                   value: metrics.completionRatio,
-                  strokeWidth: 6,
+                  strokeWidth: isCompact ? 5 : 6,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                   valueColor: const AlwaysStoppedAnimation<Color>(
                     AppColors.primary,
@@ -93,8 +100,8 @@ class DashboardSummaryCards extends StatelessWidget {
                 ),
                 Text(
                   '${metrics.completionPercentage}%',
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: isCompact ? 12 : 14,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
@@ -102,34 +109,36 @@ class DashboardSummaryCards extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isCompact ? 10 : 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   '今日计划完成度',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: isCompact ? 11 : 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondaryLight,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   '已完成 ${metrics.completedEstimatedMinutes} 分钟',
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: TextStyle(
+                    fontSize: isCompact ? 13 : 16,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '总预估 ${metrics.totalEstimatedMinutes} 分钟 · 按预估工时加权',
-                  style: const TextStyle(
-                    fontSize: 11,
+                  '总预估 ${metrics.totalEstimatedMinutes} 分钟 · 工时加权',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isCompact ? 10 : 11,
                     color: AppColors.textMutedLight,
                   ),
                 ),
@@ -142,32 +151,34 @@ class DashboardSummaryCards extends StatelessWidget {
   }
 
   /// 剩余预计时间显示
-  Widget _buildRemainingTimeCard() {
+  Widget _buildRemainingTimeCard(bool isCompact) {
     return _buildMetricCard(
       title: '剩余预计时间',
       value: AppDateUtils.formatMinutes(metrics.remainingEstimatedMinutes),
       subtitle: '今日未完成子任务工时总和',
       icon: Icons.hourglass_empty_rounded,
       color: AppColors.warning,
+      isCompact: isCompact,
     );
   }
 
   /// 剩余子任务数量显示
-  Widget _buildRemainingSubtasksCard() {
+  Widget _buildRemainingSubtasksCard(bool isCompact) {
     return _buildMetricCard(
       title: '剩余待办子任务',
       value: '${metrics.remainingSubtasksCount} 项',
       subtitle:
-          '共 ${metrics.totalSubtasksCount} 个子任务 (已完成 ${metrics.completedSubtasksCount} 项)',
+          '共 ${metrics.totalSubtasksCount} 项 (完成 ${metrics.completedSubtasksCount} 项)',
       icon: Icons.playlist_add_check_circle_rounded,
       color: AppColors.primary,
+      isCompact: isCompact,
     );
   }
 
   /// 今日总专注时长（真实打卡时长）
-  Widget _buildFocusDurationCard() {
+  Widget _buildFocusDurationCard(bool isCompact) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isCompact ? 12 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -183,19 +194,19 @@ class DashboardSummaryCards extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: isCompact ? 40 : 48,
+            height: isCompact ? 40 : 48,
             decoration: BoxDecoration(
               color: AppColors.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.timer_outlined,
               color: AppColors.accent,
-              size: 26,
+              size: isCompact ? 22 : 26,
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isCompact ? 10 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,18 +214,18 @@ class DashboardSummaryCards extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Text(
-                      '今日总专注时长',
+                    Text(
+                      '今日专注时长',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: isCompact ? 11 : 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textSecondaryLight,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
+                        horizontal: 4,
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
@@ -222,9 +233,9 @@ class DashboardSummaryCards extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
-                        '真实打卡',
+                        '打卡',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: AppColors.accent,
                           fontWeight: FontWeight.w600,
                         ),
@@ -232,22 +243,24 @@ class DashboardSummaryCards extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   AppDateUtils.formatSecondsDuration(
                     metrics.todayTotalFocusSeconds,
                   ),
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: TextStyle(
+                    fontSize: isCompact ? 15 : 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimaryLight,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '专注模式实际耗时: ${AppDateUtils.formatSecondsToTime(metrics.todayTotalFocusSeconds)}',
-                  style: const TextStyle(
-                    fontSize: 11,
+                  '实际: ${AppDateUtils.formatSecondsToTime(metrics.todayTotalFocusSeconds)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isCompact ? 10 : 11,
                     color: AppColors.textMutedLight,
                   ),
                 ),
@@ -265,9 +278,10 @@ class DashboardSummaryCards extends StatelessWidget {
     required String subtitle,
     required IconData icon,
     required Color color,
+    bool isCompact = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.all(isCompact ? 12 : 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -283,15 +297,15 @@ class DashboardSummaryCards extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: isCompact ? 36 : 44,
+            height: isCompact ? 36 : 44,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 24),
+            child: Icon(icon, color: color, size: isCompact ? 20 : 24),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isCompact ? 10 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,8 +313,8 @@ class DashboardSummaryCards extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: isCompact ? 11 : 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textSecondaryLight,
                   ),
@@ -308,8 +322,8 @@ class DashboardSummaryCards extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 17,
+                  style: TextStyle(
+                    fontSize: isCompact ? 15 : 17,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimaryLight,
                   ),
@@ -319,8 +333,8 @@ class DashboardSummaryCards extends StatelessWidget {
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
+                  style: TextStyle(
+                    fontSize: isCompact ? 10 : 11,
                     color: AppColors.textMutedLight,
                   ),
                 ),
