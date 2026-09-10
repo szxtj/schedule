@@ -29,7 +29,10 @@ class StorageService {
 
       if (home.contains('/Library/Containers/')) {
         // 当前处于沙盒环境，对端为真实主目录 Documents
-        final realHome = home.substring(0, home.indexOf('/Library/Containers/'));
+        final realHome = home.substring(
+          0,
+          home.indexOf('/Library/Containers/'),
+        );
         return Directory('$realHome/Documents/ScheduleFocusData');
       } else {
         // 当前处于非沙盒环境，对端为沙盒容器 Documents
@@ -146,4 +149,3 @@ class StorageService {
     }
   }
 }
-
