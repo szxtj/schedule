@@ -8,9 +8,6 @@ class AppDelegate: FlutterAppDelegate {
   var statusBarChannel: FlutterMethodChannel?
 
   override func applicationDidFinishLaunching(_ notification: Notification) {
-    super.applicationDidFinishLaunching(notification)
-    // FlutterAppDelegate does not implement applicationDidFinishLaunching.
-    // Calling super would result in unrecognized selector exception.
     setupStatusBar()
     setupMethodChannel()
   }
@@ -19,7 +16,6 @@ class AppDelegate: FlutterAppDelegate {
     statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem?.isVisible = true
     if let button = statusItem?.button {
-      button.image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "计划清单")
       let image = NSImage(systemSymbolName: "checklist", accessibilityDescription: "计划清单")
       image?.isTemplate = true
       button.image = image

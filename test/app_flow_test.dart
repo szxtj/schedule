@@ -26,7 +26,6 @@ class FakeTaskRepository extends TaskRepository {
 }
 
 void main() {
-  testWidgets('完整业务流程：创建任务、加权百分比计算、攻克倒计时与智能减少时间、打卡记录验证', (
   testWidgets('完整业务流程：创建任务、加权百分比计算、专注倒计时与智能减少时间、打卡记录验证', (
     WidgetTester tester,
   ) async {
