@@ -8,7 +8,9 @@ import '../../providers/task_provider.dart';
 import '../dialogs/focus_extend_dialog.dart';
 
 class FocusScreen extends ConsumerStatefulWidget {
-  const FocusScreen({super.key});
+  final String? sessionKey;
+
+  const FocusScreen({super.key, this.sessionKey});
 
   @override
   ConsumerState<FocusScreen> createState() => _FocusScreenState();
@@ -20,9 +22,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
   @override
   Widget build(BuildContext context) {
     final timerState = ref.watch(focusTimerProvider);
-    final task = timerState.targetTask;
+    final key = widget.sessionKey ?? timerState.currentSessionKey;
+    final session = key != null
+        ? timerState.sessions[key]
+        : timerState.currentSession;
 
-    if (task == null || !timerState.isActive) {
+    if (session == null) {
       return const Scaffold(
         backgroundColor: AppColors.focusBackground,
         body: SizedBox.shrink(),
@@ -30,21 +35,25 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     }
 
     // 监听倒计时归零弹出延时确认
-    if (timerState.status == FocusTimerStatus.completedPrompt && !_isShowingExtendDialog) {
+    if (session.status == FocusTimerStatus.completedPrompt &&
+        !_isShowingExtendDialog) {
       _isShowingExtendDialog = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showTimeUpDialog(context, task, timerState);
+        _showTimeUpDialog(context, session);
       });
     }
 
-    final isSingleSubtask = timerState.isConqueringSingleSubtask;
-    final isRunning = timerState.status == FocusTimerStatus.running;
-    final isPaused = timerState.status == FocusTimerStatus.paused;
+    final isSingleSubtask = session.isSingleSubtask;
+    final isRunning = session.status == FocusTimerStatus.running;
+    final isPaused = session.status == FocusTimerStatus.paused;
 
     final todayKey = AppDateUtils.todayKey();
     // 实时获取任务最新的子任务列表状态
     final allTasks = ref.watch(tasksProvider);
-    final currentTask = allTasks.firstWhere((t) => t.id == task.id, orElse: () => task);
+    final currentTask = allTasks.firstWhere(
+      (t) => t.id == session.targetTask.id,
+      orElse: () => session.targetTask,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.focusBackground,
@@ -65,17 +74,17 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildTaskHeader(currentTask, timerState),
+                            _buildTaskHeader(currentTask, session),
                             const SizedBox(height: 32),
-                            _buildTimerRing(timerState),
+                            _buildTimerRing(session),
                             const SizedBox(height: 32),
-                            _buildActionControls(isRunning, isPaused),
+                            _buildActionControls(session, isRunning, isPaused),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  // 右侧（若攻克整项任务）：子任务攻克清单，支持实时勾选并智能缩减倒计时
+                  // 右侧（若进行整项任务）：子任务清单，支持实时勾选并智能缩减倒计时
                   if (!isSingleSubtask) ...[
                     Container(
                       width: 1,
@@ -84,7 +93,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                     ),
                     Expanded(
                       flex: 4,
-                      child: _buildSubtasksSidebar(currentTask, todayKey),
+                      child: _buildSubtasksSidebar(
+                        session,
+                        currentTask,
+                        todayKey,
+                      ),
                     ),
                   ],
                 ],
@@ -109,12 +122,12 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             onPressed: () {
-              // 暂停时或运行中均可返回主界面，主界面实时展示当前攻克胶囊
+              // 暂停时或运行中均可返回主界面，后台保持进行
               Navigator.of(context).pop();
             },
             icon: const Icon(Icons.arrow_back_rounded, size: 18),
             label: Text(
-              isPaused ? '暂停中 · 返回主界面' : '返回主界面 (后台专注)',
+              isPaused ? '任务暂停中 · 返回主界面' : '返回主界面 (后台运行)',
               style: const TextStyle(fontSize: 14),
             ),
           ),
@@ -143,9 +156,11 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isRunning ? '深度攻克中...' : (isPaused ? '倒计时已暂停' : '攻克待确认'),
+                  isRunning ? '任务进行中...' : (isPaused ? '任务已暂停' : '时间到达待确认'),
                   style: TextStyle(
-                    color: isRunning ? AppColors.accentLight : AppColors.warning,
+                    color: isRunning
+                        ? AppColors.accentLight
+                        : AppColors.warning,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -158,8 +173,8 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     );
   }
 
-  Widget _buildTaskHeader(Task currentTask, FocusTimerState state) {
-    final subtask = state.targetSubtask;
+  Widget _buildTaskHeader(Task currentTask, TaskSession session) {
+    final subtask = session.targetSubtask;
     return Column(
       children: [
         Container(
@@ -169,7 +184,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
-            subtask != null ? '正在攻克单个子任务' : '正在攻克整项综合任务',
+            subtask != null ? '正在进行单个子任务' : '正在进行整项综合任务',
             style: const TextStyle(color: Colors.white60, fontSize: 12),
           ),
         ),
@@ -186,7 +201,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         if (subtask != null) ...[
           const SizedBox(height: 4),
           Text(
-            '所属任务: ${currentTask.title}',
+            '所属总任务: ${currentTask.title}',
             style: const TextStyle(color: Colors.white54, fontSize: 14),
           ),
         ],
@@ -194,10 +209,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     );
   }
 
-  Widget _buildTimerRing(FocusTimerState timerState) {
-    final remaining = timerState.remainingSeconds;
+  Widget _buildTimerRing(TaskSession session) {
+    final remaining = session.remainingSeconds;
     final timeStr = AppDateUtils.formatSecondsToTime(remaining);
-    final ratio = timerState.progressRatio;
+    final ratio = session.progressRatio;
 
     return Stack(
       alignment: Alignment.center,
@@ -210,7 +225,7 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             strokeWidth: 12,
             backgroundColor: Colors.white10,
             valueColor: AlwaysStoppedAnimation<Color>(
-              timerState.status == FocusTimerStatus.running
+              session.status == FocusTimerStatus.running
                   ? AppColors.accent
                   : AppColors.warning,
             ),
@@ -231,13 +246,16 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '真实专注: ${AppDateUtils.formatSecondsToTime(timerState.actualElapsedSeconds)}',
+              '实际专注: ${AppDateUtils.formatSecondsToTime(session.actualElapsedSeconds)}',
               style: const TextStyle(color: Colors.white60, fontSize: 13),
             ),
-            if (timerState.extendedSeconds > 0)
+            if (session.extendedSeconds > 0)
               Text(
-                '已延长: +${AppDateUtils.formatMinutes(timerState.extendedSeconds ~/ 60)}',
-                style: const TextStyle(color: AppColors.accentLight, fontSize: 12),
+                '已延长: +${AppDateUtils.formatMinutes(session.extendedSeconds ~/ 60)}',
+                style: const TextStyle(
+                  color: AppColors.accentLight,
+                  fontSize: 12,
+                ),
               ),
           ],
         ),
@@ -245,9 +263,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     );
   }
 
-  Widget _buildActionControls(bool isRunning, bool isPaused) {
+  Widget _buildActionControls(
+    TaskSession session,
+    bool isRunning,
+    bool isPaused,
+  ) {
+    final sessionKey = session.sessionKey;
+
     return Wrap(
-      spacing: 14,
+      spacing: 12,
       runSpacing: 10,
       alignment: WrapAlignment.center,
       children: [
@@ -257,16 +281,21 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             backgroundColor: isRunning ? AppColors.warning : AppColors.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           onPressed: () {
             if (isRunning) {
-              ref.read(focusTimerProvider.notifier).pause();
+              ref.read(focusTimerProvider.notifier).pauseSession(sessionKey);
             } else {
-              ref.read(focusTimerProvider.notifier).resume();
+              ref.read(focusTimerProvider.notifier).resumeSession(sessionKey);
             }
           },
-          icon: Icon(isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 20),
+          icon: Icon(
+            isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            size: 20,
+          ),
           label: Text(
             isRunning ? '暂停' : '继续',
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
@@ -278,12 +307,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             backgroundColor: AppColors.accent,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           onPressed: () async {
             final nav = Navigator.of(context);
             if (nav.canPop()) nav.pop();
-            await ref.read(focusTimerProvider.notifier).finishEarly();
+            await ref.read(focusTimerProvider.notifier).finishEarly(sessionKey);
           },
           icon: const Icon(Icons.check_circle_outline_rounded, size: 20),
           label: const Text(
@@ -291,18 +322,36 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
-        // 退出或取消攻克按钮
+        // 取消任务按钮（作废统计与勾选进度）
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.danger,
+            side: const BorderSide(color: AppColors.danger),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          onPressed: () => _confirmCancelTask(session),
+          icon: const Icon(Icons.cancel_outlined, size: 18),
+          label: const Text('取消任务', style: TextStyle(fontSize: 14)),
+        ),
+        // 结束并保存时长
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white60,
             side: const BorderSide(color: Colors.white24),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           onPressed: () async {
             final nav = Navigator.of(context);
             if (nav.canPop()) nav.pop();
-            await ref.read(focusTimerProvider.notifier).cancelOrClose(saveElapsedTime: true);
+            await ref
+                .read(focusTimerProvider.notifier)
+                .finishAndSave(sessionKey);
           },
           icon: const Icon(Icons.stop_circle_outlined, size: 18),
           label: const Text('结束并保存时长', style: TextStyle(fontSize: 14)),
@@ -311,7 +360,57 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
     );
   }
 
-  Widget _buildSubtasksSidebar(Task task, String todayKey) {
+  void _confirmCancelTask(TaskSession session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.danger),
+            SizedBox(width: 8),
+            Text('确认取消当前任务？'),
+          ],
+        ),
+        content: Text(
+          '取消后，本次进行过程中的所有专注计时（${AppDateUtils.formatSecondsDuration(session.actualElapsedSeconds)}）将全部作废且不计入统计；\n\n'
+          '同时在本次任务进行中勾选完成的 ${session.completedSubtaskIdsInSession.length} 项子任务进度也将全部撤销恢复为未完成状态。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('继续任务'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('确认取消并作废'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final nav = Navigator.of(context);
+      if (nav.canPop()) nav.pop();
+      await ref
+          .read(focusTimerProvider.notifier)
+          .cancelTask(session.sessionKey);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.textPrimaryLight,
+            content: Text('已取消任务，本次专注时间与勾选进度已作废。'),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSubtasksSidebar(
+    TaskSession session,
+    Task task,
+    String todayKey,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(32.0),
       child: Column(
@@ -319,10 +418,14 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.checklist_rtl_rounded, color: AppColors.primaryLight, size: 20),
+              const Icon(
+                Icons.checklist_rtl_rounded,
+                color: AppColors.primaryLight,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text(
-                '子任务攻克清单',
+                '子任务清单',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -354,7 +457,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
                 return Container(
                   decoration: BoxDecoration(
-                    color: isDone ? Colors.white.withValues(alpha: 0.04) : Colors.white.withValues(alpha: 0.08),
+                    color: isDone
+                        ? Colors.white.withValues(alpha: 0.04)
+                        : Colors.white.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: isDone ? Colors.white10 : Colors.white24,
@@ -371,15 +476,23 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                         color: isDone ? Colors.white38 : Colors.white,
                         decoration: isDone ? TextDecoration.lineThrough : null,
                         fontSize: 14,
-                        fontWeight: isDone ? FontWeight.normal : FontWeight.w500,
+                        fontWeight: isDone
+                            ? FontWeight.normal
+                            : FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
-                      '预估工时: ${st.estimatedMinutes} 分钟',
-                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                      '预计需用时: ${st.estimatedMinutes} 分钟',
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 12,
+                      ),
                     ),
                     secondary: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
@@ -399,7 +512,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                             if (val == true) {
                               await ref
                                   .read(focusTimerProvider.notifier)
-                                  .checkSubtaskInSession(st.id);
+                                  .checkSubtaskInSession(
+                                    session.sessionKey,
+                                    st.id,
+                                  );
 
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -407,8 +523,10 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
                                     backgroundColor: AppColors.accent,
                                     duration: const Duration(seconds: 2),
                                     content: Text(
-                                      '已完成【${st.title}】！倒计时已智能更新为更紧凑预估时间。',
-                                      style: const TextStyle(color: Colors.white),
+                                      '已完成【${st.title}】！倒计时已智能更新为紧凑预估时间。',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -427,20 +545,20 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
   Future<void> _showTimeUpDialog(
     BuildContext context,
-    Task task,
-    FocusTimerState state,
+    TaskSession session,
   ) async {
     final todayKey = AppDateUtils.todayKey();
-    final uncompleted = task.uncompletedSubtasks(todayKey);
+    final uncompleted = session.targetTask.uncompletedSubtasks(todayKey);
 
     final nav = Navigator.of(context);
-    final extensionMinutes = await showDialog<int>(
+    final result = await showDialog<int>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => FocusExtendDialog(
-        task: task,
+        task: session.targetTask,
+        targetSubtask: session.targetSubtask,
         uncompletedSubtasks: uncompleted,
-        actualElapsedSeconds: state.actualElapsedSeconds,
+        actualElapsedSeconds: session.actualElapsedSeconds,
       ),
     );
 
@@ -448,13 +566,23 @@ class _FocusScreenState extends ConsumerState<FocusScreen> {
 
     if (!mounted) return;
 
-    if (extensionMinutes != null && extensionMinutes > 0) {
-      ref.read(focusTimerProvider.notifier).extendTimer(extensionMinutes);
-    } else {
-      await ref.read(focusTimerProvider.notifier).finishAndSave();
-      if (mounted && nav.canPop()) {
-        nav.pop();
-      }
+    if (result == -1) {
+      // 取消任务：作废统计与勾选进度
+      if (mounted && nav.canPop()) nav.pop();
+      await ref
+          .read(focusTimerProvider.notifier)
+          .cancelTask(session.sessionKey);
+    } else if (result != null && result > 0) {
+      // 延长时间
+      ref
+          .read(focusTimerProvider.notifier)
+          .extendTimer(result, session.sessionKey);
+    } else if (result == 0) {
+      // 结束任务并保存
+      if (mounted && nav.canPop()) nav.pop();
+      await ref
+          .read(focusTimerProvider.notifier)
+          .finishAndSave(session.sessionKey);
     }
   }
 }

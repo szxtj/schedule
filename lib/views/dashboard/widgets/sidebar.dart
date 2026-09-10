@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../providers/dashboard_provider.dart';
 
-enum SidebarNavSection {
-  today,
-  daily,
-  weekly,
-  all,
-  records,
-}
+enum SidebarNavSection { today, daily, weekly, all, records }
 
 class DashboardSidebar extends StatelessWidget {
   final SidebarNavSection currentSection;
@@ -112,7 +106,7 @@ class DashboardSidebar extends StatelessWidget {
                 ),
                 _buildNavItem(
                   section: SidebarNavSection.records,
-                  title: '专注攻克明细',
+                  title: '专注执行明细',
                   icon: Icons.insights_rounded,
                 ),
               ],
@@ -129,7 +123,11 @@ class DashboardSidebar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.flash_on_rounded, color: AppColors.accent, size: 18),
+                const Icon(
+                  Icons.flash_on_rounded,
+                  color: AppColors.accent,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -210,4 +208,3 @@ class DashboardSidebar extends StatelessWidget {
     );
   }
 }
-

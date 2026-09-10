@@ -52,19 +52,23 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       _selectedWeeklyDays.clear();
       _selectedWeeklyDays.addAll(task.recurrence.weeklyDays);
       for (final st in task.subtasks) {
-        _subtaskDrafts.add(_SubtaskDraft(
-          id: st.id,
-          title: st.title,
-          estimatedMinutes: st.estimatedMinutes,
-        ));
+        _subtaskDrafts.add(
+          _SubtaskDraft(
+            id: st.id,
+            title: st.title,
+            estimatedMinutes: st.estimatedMinutes,
+          ),
+        );
       }
     } else {
       // 默认至少包含一个子任务（初始与任务本身同名或默认名称）
-      _subtaskDrafts.add(_SubtaskDraft(
-        id: const Uuid().v4(),
-        title: '',
-        estimatedMinutes: AppConstants.defaultEstimatedMinutes,
-      ));
+      _subtaskDrafts.add(
+        _SubtaskDraft(
+          id: const Uuid().v4(),
+          title: '',
+          estimatedMinutes: AppConstants.defaultEstimatedMinutes,
+        ),
+      );
     }
   }
 
@@ -80,19 +84,21 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
 
   void _addSubtask() {
     setState(() {
-      _subtaskDrafts.add(_SubtaskDraft(
-        id: const Uuid().v4(),
-        title: '',
-        estimatedMinutes: AppConstants.defaultEstimatedMinutes,
-      ));
+      _subtaskDrafts.add(
+        _SubtaskDraft(
+          id: const Uuid().v4(),
+          title: '',
+          estimatedMinutes: AppConstants.defaultEstimatedMinutes,
+        ),
+      );
     });
   }
 
   void _removeSubtask(int index) {
     if (_subtaskDrafts.length <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('每项任务必须至少包含一个子任务')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('每项任务必须至少包含一个子任务')));
       return;
     }
     setState(() {
@@ -115,7 +121,9 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
       var subTitle = draft.titleController.text.trim();
       if (subTitle.isEmpty) {
         // 如果未填子任务名，则默认为任务本身标题或“执行第 N 项”
-        subTitle = _subtaskDrafts.length == 1 ? taskTitle : '$taskTitle (步骤 ${i + 1})';
+        subTitle = _subtaskDrafts.length == 1
+            ? taskTitle
+            : '$taskTitle (步骤 ${i + 1})';
       }
 
       // 保留原有完成记录（如果是编辑现有子任务）
@@ -129,14 +137,16 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
         }
       }
 
-      subtasks.add(Subtask(
-        id: draft.id,
-        taskId: taskId,
-        title: subTitle,
-        estimatedMinutes: draft.estimatedMinutes,
-        orderIndex: i,
-        dailyCompletions: completions,
-      ));
+      subtasks.add(
+        Subtask(
+          id: draft.id,
+          taskId: taskId,
+          title: subTitle,
+          estimatedMinutes: draft.estimatedMinutes,
+          orderIndex: i,
+          dailyCompletions: completions,
+        ),
+      );
     }
 
     final task = Task(
@@ -161,7 +171,10 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.initialTask != null;
-    final totalMinutes = _subtaskDrafts.fold(0, (sum, d) => sum + d.estimatedMinutes);
+    final totalMinutes = _subtaskDrafts.fold(
+      0,
+      (sum, d) => sum + d.estimatedMinutes,
+    );
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -188,7 +201,10 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -305,7 +321,7 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '子任务清单 (用于加权计算完成度与攻克倒计时)',
+                            '子任务清单 (用于加权计算完成度与任务倒计时)',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -408,7 +424,10 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
                     value: mins,
                     child: Text(
                       '$mins 分钟',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -425,7 +444,9 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
           const SizedBox(width: 6),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded, size: 20),
-            color: _subtaskDrafts.length > 1 ? AppColors.danger : Colors.grey[350],
+            color: _subtaskDrafts.length > 1
+                ? AppColors.danger
+                : Colors.grey[350],
             tooltip: _subtaskDrafts.length > 1 ? '删除此子任务' : '至少保留一个子任务',
             onPressed: () => _removeSubtask(index),
           ),
@@ -439,4 +460,3 @@ class _AddTaskDialogState extends State<AddTaskDialog> {
     return names[day];
   }
 }
-

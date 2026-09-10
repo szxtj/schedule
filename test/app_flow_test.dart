@@ -26,8 +26,10 @@ class FakeTaskRepository extends TaskRepository {
 }
 
 void main() {
-  testWidgets('完整业务流程：创建任务、加权百分比计算、攻克倒计时与智能减少时间、打卡记录验证',
-      (WidgetTester tester) async {
+  testWidgets('完整业务流程：创建任务、加权百分比计算、攻克倒计时与智能减少时间、打卡记录验证', (
+  testWidgets('完整业务流程：创建任务、加权百分比计算、专注倒计时与智能减少时间、打卡记录验证', (
+    WidgetTester tester,
+  ) async {
     final todayKey = AppDateUtils.todayKey();
 
     final sampleTask = Task(
@@ -58,9 +60,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          taskRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        overrides: [taskRepositoryProvider.overrideWithValue(fakeRepo)],
         child: const ScheduleApp(),
       ),
     );
@@ -84,14 +84,14 @@ void main() {
     expect(find.text('已完成 20 分钟'), findsOneWidget);
     expect(find.text('30 分钟'), findsNWidgets(2)); // 看板剩余 30 分钟 + 子任务2预估 30 分钟
 
-    // 3. 点击“攻克整项任务”进入攻克全屏视图
-    final conquerButton = find.text('攻克整项任务');
+    // 3. 点击“开始任务”进入专注全屏视图
+    final conquerButton = find.text('开始任务');
     expect(conquerButton, findsOneWidget);
     await tester.tap(conquerButton);
     await tester.pumpAndSettle();
 
     // 验证进入专注界面
-    expect(find.text('正在攻克整项综合任务'), findsOneWidget);
+    expect(find.text('正在进行整项综合任务'), findsOneWidget);
     expect(find.text('提前完成'), findsOneWidget);
     // 初始倒计时应为剩余未完成子任务（sub-2: 30分钟 = 1800秒 = 30:00）
     expect(find.text('30:00'), findsOneWidget);

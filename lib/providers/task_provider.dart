@@ -17,6 +17,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
 
   Future<void> _load() async {
     final tasks = await _repository.loadTasks();
+    if (!mounted) return;
     state = tasks;
   }
 
@@ -78,7 +79,10 @@ class TaskNotifier extends StateNotifier<List<Task>> {
           task.copyWith(
             subtasks: [
               for (final st in task.subtasks)
-                if (st.id == subtaskId) st.setCompletion(key, completed) else st,
+                if (st.id == subtaskId)
+                  st.setCompletion(key, completed)
+                else
+                  st,
             ],
           )
         else
@@ -92,9 +96,7 @@ class TaskNotifier extends StateNotifier<List<Task>> {
     state = [
       for (final task in state)
         if (task.id == taskId)
-          task.copyWith(
-            subtasks: [...task.subtasks, subtask],
-          )
+          task.copyWith(subtasks: [...task.subtasks, subtask])
         else
           task,
     ];
@@ -122,4 +124,3 @@ final tasksProvider = StateNotifierProvider<TaskNotifier, List<Task>>((ref) {
   final repo = ref.watch(taskRepositoryProvider);
   return TaskNotifier(repo);
 });
-

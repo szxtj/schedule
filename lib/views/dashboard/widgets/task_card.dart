@@ -14,11 +14,7 @@ class TaskCard extends ConsumerStatefulWidget {
   final Task task;
   final String dateKey;
 
-  const TaskCard({
-    super.key,
-    required this.task,
-    required this.dateKey,
-  });
+  const TaskCard({super.key, required this.task, required this.dateKey});
 
   @override
   ConsumerState<TaskCard> createState() => _TaskCardState();
@@ -36,16 +32,19 @@ class _TaskCardState extends ConsumerState<TaskCard> {
   }
 
   void _startTaskFocus() {
-    ref.read(focusTimerProvider.notifier).startTaskFocus(widget.task);
+    ref.read(focusTimerProvider.notifier).startTask(widget.task);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const FocusScreen()),
+      MaterialPageRoute(
+        builder: (context) => FocusScreen(sessionKey: widget.task.id),
+      ),
     );
   }
 
   void _startSubtaskFocus(Subtask subtask) {
-    ref.read(focusTimerProvider.notifier).startSubtaskFocus(widget.task, subtask);
+    final subKey = '${widget.task.id}_${subtask.id}';
+    ref.read(focusTimerProvider.notifier).startSubtask(widget.task, subtask);
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const FocusScreen()),
+      MaterialPageRoute(builder: (context) => FocusScreen(sessionKey: subKey)),
     );
   }
 
@@ -96,7 +95,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
       orderIndex: widget.task.subtasks.length,
     );
 
-    await ref.read(tasksProvider.notifier).addSubtask(widget.task.id, newSubtask);
+    await ref
+        .read(tasksProvider.notifier)
+        .addSubtask(widget.task.id, newSubtask);
     _quickSubtaskController.clear();
     setState(() {
       _isAddingQuickSubtask = false;
@@ -112,13 +113,20 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     final completedMins = task.completedEstimatedMinutes(dateKey);
     final totalMins = task.totalEstimatedMinutes;
 
+    final timerState = ref.watch(focusTimerProvider);
+    final taskSession = timerState.sessions[task.id];
+    final isTaskRunning = taskSession?.status == FocusTimerStatus.running;
+    final isTaskPaused = taskSession?.status == FocusTimerStatus.paused;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isAllDone ? AppColors.accent.withValues(alpha: 0.3) : AppColors.borderLight,
+          color: isAllDone
+              ? AppColors.accent.withValues(alpha: 0.3)
+              : AppColors.borderLight,
         ),
         boxShadow: [
           BoxShadow(
@@ -143,7 +151,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                   child: Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: Icon(
-                      _isExpanded ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_right_rounded,
+                      _isExpanded
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_right_rounded,
                       color: AppColors.textSecondaryLight,
                       size: 24,
                     ),
@@ -165,8 +175,12 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: isAllDone ? AppColors.textMutedLight : AppColors.textPrimaryLight,
-                                decoration: isAllDone ? TextDecoration.lineThrough : null,
+                                color: isAllDone
+                                    ? AppColors.textMutedLight
+                                    : AppColors.textPrimaryLight,
+                                decoration: isAllDone
+                                    ? TextDecoration.lineThrough
+                                    : null,
                               ),
                             ),
                           ),
@@ -194,7 +208,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                 minHeight: 6,
                                 backgroundColor: AppColors.backgroundLight,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  isAllDone ? AppColors.accent : AppColors.primary,
+                                  isAllDone
+                                      ? AppColors.accent
+                                      : AppColors.primary,
                                 ),
                               ),
                             ),
@@ -217,24 +233,49 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                 // 操作按钮区
                 Row(
                   children: [
-                    // 攻克整项任务按钮
+                    // 开始整项任务按钮
                     FilledButton.icon(
                       style: FilledButton.styleFrom(
                         backgroundColor: isAllDone
                             ? AppColors.textMutedLight
-                            : AppColors.primary,
+                            : (isTaskRunning
+                                  ? AppColors.accent
+                                  : (isTaskPaused
+                                        ? AppColors.warning
+                                        : AppColors.primary)),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                       onPressed: isAllDone ? null : _startTaskFocus,
-                      icon: const Icon(Icons.flash_on_rounded, size: 16),
-                      label: const Text('攻克整项任务', style: TextStyle(fontSize: 12)),
+                      icon: Icon(
+                        isTaskRunning
+                            ? Icons.play_circle_fill_rounded
+                            : (isTaskPaused
+                                  ? Icons.pause_circle_filled_rounded
+                                  : Icons.flash_on_rounded),
+                        size: 16,
+                      ),
+                      label: Text(
+                        isTaskRunning
+                            ? '进行中 · 查看'
+                            : (isTaskPaused ? '已暂停 · 继续' : '开始任务'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ),
                     const SizedBox(width: 4),
                     // 更多菜单
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert_rounded, size: 20, color: AppColors.textSecondaryLight),
+                      icon: const Icon(
+                        Icons.more_vert_rounded,
+                        size: 20,
+                        color: AppColors.textSecondaryLight,
+                      ),
                       onSelected: (val) {
                         if (val == 'edit') _editTask();
                         if (val == 'delete') _deleteTask();
@@ -270,9 +311,16 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                           value: 'delete',
                           child: Row(
                             children: [
-                              Icon(Icons.delete_outline, size: 18, color: AppColors.danger),
+                              Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: AppColors.danger,
+                              ),
                               SizedBox(width: 8),
-                              Text('删除任务', style: TextStyle(color: AppColors.danger)),
+                              Text(
+                                '删除任务',
+                                style: TextStyle(color: AppColors.danger),
+                              ),
                             ],
                           ),
                         ),
@@ -291,7 +339,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
                 children: [
-                  ...task.subtasks.map((st) => _buildSubtaskTile(st, dateKey)),
+                  ...task.subtasks.map(
+                    (st) => _buildSubtaskTile(st, dateKey, timerState),
+                  ),
                   // 快捷添加子任务输入行
                   if (_isAddingQuickSubtask)
                     Padding(
@@ -307,7 +357,10 @@ class _TaskCardState extends ConsumerState<TaskCard> {
                                 hintText: '输入新子任务名称...',
                                 isDense: true,
                                 border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
                               ),
                               onSubmitted: (_) => _submitQuickSubtask(),
                             ),
@@ -338,8 +391,16 @@ class _TaskCardState extends ConsumerState<TaskCard> {
     );
   }
 
-  Widget _buildSubtaskTile(Subtask subtask, String dateKey) {
+  Widget _buildSubtaskTile(
+    Subtask subtask,
+    String dateKey,
+    FocusTimerState timerState,
+  ) {
     final isDone = subtask.isCompletedOn(dateKey);
+    final subtaskKey = '${widget.task.id}_${subtask.id}';
+    final subtaskSession = timerState.sessions[subtaskKey];
+    final isSubtaskRunning = subtaskSession?.status == FocusTimerStatus.running;
+    final isSubtaskPaused = subtaskSession?.status == FocusTimerStatus.paused;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3),
@@ -357,9 +418,13 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           Checkbox(
             value: isDone,
             activeColor: AppColors.accent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
             onChanged: (val) {
-              ref.read(tasksProvider.notifier).toggleSubtaskCompletion(
+              ref
+                  .read(tasksProvider.notifier)
+                  .toggleSubtaskCompletion(
                     widget.task.id,
                     subtask.id,
                     dateKey: dateKey,
@@ -373,7 +438,9 @@ class _TaskCardState extends ConsumerState<TaskCard> {
               subtask.title,
               style: TextStyle(
                 fontSize: 13,
-                color: isDone ? AppColors.textMutedLight : AppColors.textPrimaryLight,
+                color: isDone
+                    ? AppColors.textMutedLight
+                    : AppColors.textPrimaryLight,
                 decoration: isDone ? TextDecoration.lineThrough : null,
               ),
             ),
@@ -395,15 +462,31 @@ class _TaskCardState extends ConsumerState<TaskCard> {
             ),
           ),
           const SizedBox(width: 10),
-          // 独立攻克此子任务按钮
+          // 独立进行此子任务按钮
           TextButton.icon(
             style: TextButton.styleFrom(
-              foregroundColor: isDone ? AppColors.textMutedLight : AppColors.accent,
+              foregroundColor: isDone
+                  ? AppColors.textMutedLight
+                  : (isSubtaskRunning
+                        ? AppColors.accent
+                        : (isSubtaskPaused
+                              ? AppColors.warning
+                              : AppColors.accent)),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
             onPressed: isDone ? null : () => _startSubtaskFocus(subtask),
-            icon: const Icon(Icons.play_circle_fill_rounded, size: 16),
-            label: const Text('攻克此项', style: TextStyle(fontSize: 12)),
+            icon: Icon(
+              isSubtaskRunning
+                  ? Icons.play_circle_fill_rounded
+                  : (isSubtaskPaused
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.play_circle_outline_rounded),
+              size: 16,
+            ),
+            label: Text(
+              isSubtaskRunning ? '进行中' : (isSubtaskPaused ? '继续' : '开始此项'),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -446,7 +529,11 @@ class _TaskCardState extends ConsumerState<TaskCard> {
           const SizedBox(width: 4),
           Text(
             rule.summaryText,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: fg,
+            ),
           ),
         ],
       ),

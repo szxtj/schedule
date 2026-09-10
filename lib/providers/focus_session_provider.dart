@@ -16,6 +16,7 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
 
   Future<void> _load() async {
     final sessions = await _repository.loadSessions();
+    if (!mounted) return;
     state = sessions;
   }
 
@@ -34,9 +35,9 @@ class FocusSessionNotifier extends StateNotifier<List<FocusSession>> {
 
 final focusSessionsProvider =
     StateNotifierProvider<FocusSessionNotifier, List<FocusSession>>((ref) {
-  final repo = ref.watch(focusRepositoryProvider);
-  return FocusSessionNotifier(repo);
-});
+      final repo = ref.watch(focusRepositoryProvider);
+      return FocusSessionNotifier(repo);
+    });
 
 /// 获取今日已完成专注记录的总专注秒数
 final todayTotalFocusSecondsProvider = Provider<int>((ref) {
@@ -46,4 +47,3 @@ final todayTotalFocusSecondsProvider = Provider<int>((ref) {
       .where((s) => s.dateKey == todayKey)
       .fold(0, (sum, s) => sum + s.actualDurationSeconds);
 });
-

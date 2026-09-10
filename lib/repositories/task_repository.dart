@@ -10,7 +10,7 @@ class TaskRepository {
   final StorageService _storage;
 
   TaskRepository({StorageService? storage})
-      : _storage = storage ?? StorageService.instance;
+    : _storage = storage ?? StorageService.instance;
 
   Future<List<Task>> loadTasks() async {
     final data = await _storage.readJson(_fileName);
@@ -20,7 +20,9 @@ class TaskRepository {
       await saveTasks(initialTasks);
       return initialTasks;
     }
-    return data.map((item) => Task.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => Task.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> saveTasks(List<Task> tasks) async {
@@ -63,7 +65,7 @@ class TaskRepository {
       Task(
         id: task2Id,
         title: '项目架构设计与核心功能编码',
-        description: '攻克关键业务逻辑与界面开发',
+        description: '完成关键业务逻辑与界面开发',
         recurrence: const RecurrenceRule(
           type: RecurrenceType.weekly,
           weeklyDays: [1, 2, 3, 4, 5], // 工作日
@@ -80,7 +82,7 @@ class TaskRepository {
           Subtask(
             id: uuid.v4(),
             taskId: task2Id,
-            title: '沉浸式任务攻克视图与提醒机制对接',
+            title: '沉浸式任务专注视图与提醒机制对接',
             estimatedMinutes: 30,
             orderIndex: 1,
           ),

@@ -6,17 +6,23 @@ class FocusSession {
   final String? subtaskTitle;
   final DateTime startTime;
   final DateTime endTime;
-  /// 真实攻克消耗的专注时长（秒）
+
+  /// 真实专注消耗的时长（秒）
   final int actualDurationSeconds;
-  /// 初始设定的计划倒计时（秒）
+
+  /// 初始计划时长（秒）
   final int plannedDurationSeconds;
-  /// 追加延长的时长（秒）
+
+  /// 额外延长的时长（秒）
   final int extendedSeconds;
+
   /// 是否提前点击完成
   final bool isEarlyFinished;
-  /// 所属日期键，例如 "2026-09-10"
+
+  /// 归属日期 key (yyyy-MM-dd)
   final String dateKey;
-  /// 本次攻克中勾选完成的子任务 ID 列表
+
+  /// 本次专注中勾选完成的子任务 ID 列表
   final List<String> completedSubtaskIds;
 
   const FocusSession({
@@ -58,18 +64,23 @@ class FocusSession {
       taskTitle: json['taskTitle'] as String? ?? '',
       subtaskId: json['subtaskId'] as String?,
       subtaskTitle: json['subtaskTitle'] as String?,
-      startTime: DateTime.tryParse(json['startTime'] as String? ?? '') ?? DateTime.now(),
-      endTime: DateTime.tryParse(json['endTime'] as String? ?? '') ?? DateTime.now(),
-      actualDurationSeconds: (json['actualDurationSeconds'] as num?)?.toInt() ?? 0,
-      plannedDurationSeconds: (json['plannedDurationSeconds'] as num?)?.toInt() ?? 0,
+      startTime:
+          DateTime.tryParse(json['startTime'] as String? ?? '') ??
+          DateTime.now(),
+      endTime:
+          DateTime.tryParse(json['endTime'] as String? ?? '') ?? DateTime.now(),
+      actualDurationSeconds:
+          (json['actualDurationSeconds'] as num?)?.toInt() ?? 0,
+      plannedDurationSeconds:
+          (json['plannedDurationSeconds'] as num?)?.toInt() ?? 0,
       extendedSeconds: (json['extendedSeconds'] as num?)?.toInt() ?? 0,
       isEarlyFinished: json['isEarlyFinished'] as bool? ?? false,
       dateKey: json['dateKey'] as String? ?? '',
-      completedSubtaskIds: (json['completedSubtaskIds'] as List<dynamic>?)
+      completedSubtaskIds:
+          (json['completedSubtaskIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const [],
     );
   }
 }
-

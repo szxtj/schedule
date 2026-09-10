@@ -87,7 +87,9 @@ class DashboardSummaryCards extends StatelessWidget {
                   value: metrics.completionRatio,
                   strokeWidth: 6,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.primary,
+                  ),
                 ),
                 Text(
                   '${metrics.completionPercentage}%',
@@ -155,13 +157,14 @@ class DashboardSummaryCards extends StatelessWidget {
     return _buildMetricCard(
       title: '剩余待办子任务',
       value: '${metrics.remainingSubtasksCount} 项',
-      subtitle: '共 ${metrics.totalSubtasksCount} 个子任务 (已完成 ${metrics.completedSubtasksCount} 项)',
+      subtitle:
+          '共 ${metrics.totalSubtasksCount} 个子任务 (已完成 ${metrics.completedSubtasksCount} 项)',
       icon: Icons.playlist_add_check_circle_rounded,
       color: AppColors.primary,
     );
   }
 
-  /// 今日总专注时长（任务攻克状态真实打卡时长）
+  /// 今日总专注时长（真实打卡时长）
   Widget _buildFocusDurationCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -210,7 +213,10 @@ class DashboardSummaryCards extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
@@ -228,7 +234,9 @@ class DashboardSummaryCards extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  AppDateUtils.formatSecondsDuration(metrics.todayTotalFocusSeconds),
+                  AppDateUtils.formatSecondsDuration(
+                    metrics.todayTotalFocusSeconds,
+                  ),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -237,7 +245,7 @@ class DashboardSummaryCards extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '攻克模式实际耗时: ${AppDateUtils.formatSecondsToTime(metrics.todayTotalFocusSeconds)}',
+                  '专注模式实际耗时: ${AppDateUtils.formatSecondsToTime(metrics.todayTotalFocusSeconds)}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textMutedLight,
@@ -324,4 +332,3 @@ class DashboardSummaryCards extends StatelessWidget {
     );
   }
 }
-

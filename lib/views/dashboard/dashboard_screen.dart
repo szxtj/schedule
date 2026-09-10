@@ -34,9 +34,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  void _openFocusScreen() {
+  void _openFocusScreen([String? sessionKey]) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const FocusScreen()),
+      MaterialPageRoute(
+        builder: (context) => FocusScreen(sessionKey: sessionKey),
+      ),
     );
   }
 
@@ -57,15 +59,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onSectionChanged: (sec) => setState(() => _currentSection = sec),
             metrics: metrics,
           ),
-          const VerticalDivider(width: 1, thickness: 1, color: AppColors.borderLight),
+          const VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: AppColors.borderLight,
+          ),
           // 右侧主内容区域
           Expanded(
             child: Column(
               children: [
                 // 顶部状态栏
                 _buildTopAppBar(context, timerState),
-                // 活跃攻克悬浮提示条（当专注进行中或暂停且退回主界面时常驻提示）
-                if (timerState.isActive) _buildActiveFocusBanner(timerState),
+                // 活跃任务悬浮提示条（当专注进行中或暂停且退回主界面时常驻提示）
+                if (timerState.hasActiveSessions)
+                  _buildActiveFocusBanner(timerState),
                 // 主体列表与视图
                 Expanded(
                   child: _currentSection == SidebarNavSection.records
@@ -118,12 +125,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 onPressed: _openAddTaskDialog,
                 icon: const Icon(Icons.add_rounded, size: 20),
-                label: const Text('新建计划任务', style: TextStyle(fontWeight: FontWeight.w600)),
+                label: const Text(
+                  '新建计划任务',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -132,45 +147,81 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// 正在攻克状态条（支持直接切入专注界面）
+  /// 正在进行/暂停状态条（支持直接切入任务界面）
   Widget _buildActiveFocusBanner(FocusTimerState timerState) {
-    final isPaused = timerState.status == FocusTimerStatus.paused;
-    final taskName = timerState.targetSubtask?.title ?? timerState.targetTask?.title ?? '当前任务';
-    final timeStr = AppDateUtils.formatSecondsToTime(timerState.remainingSeconds);
+    final running = timerState.runningSession;
+    final pausedList = timerState.pausedSessions;
+
+    final primarySession = running ?? pausedList.firstOrNull;
+    if (primarySession == null) return const SizedBox.shrink();
+
+    final isRunning = primarySession.status == FocusTimerStatus.running;
+    final taskName = primarySession.displayName;
+    final timeStr = AppDateUtils.formatSecondsToTime(
+      primarySession.remainingSeconds,
+    );
 
     return Container(
       width: double.infinity,
-      color: isPaused
-          ? AppColors.warning.withValues(alpha: 0.15)
-          : AppColors.accent.withValues(alpha: 0.15),
+      color: isRunning
+          ? AppColors.accent.withValues(alpha: 0.15)
+          : AppColors.warning.withValues(alpha: 0.15),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
       child: Row(
         children: [
           Icon(
-            isPaused ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded,
-            color: isPaused ? AppColors.warning : AppColors.accent,
+            isRunning
+                ? Icons.play_circle_fill_rounded
+                : Icons.pause_circle_filled_rounded,
+            color: isRunning ? AppColors.accent : AppColors.warning,
             size: 22,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '${isPaused ? "攻克暂停中" : "攻克进行中"}：【$taskName】 · 剩余倒计时 $timeStr · 实际已专注 ${AppDateUtils.formatSecondsToTime(timerState.actualElapsedSeconds)}',
+              '${isRunning ? "任务进行中" : "任务已暂停"}：【$taskName】 · 倒计时 $timeStr · 实际已专注 ${AppDateUtils.formatSecondsToTime(primarySession.actualElapsedSeconds)}'
+              '${pausedList.isNotEmpty && isRunning ? " (另有 ${pausedList.length} 项已暂停)" : ""}',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isPaused ? Colors.amber[900] : AppColors.accent,
+                color: isRunning ? AppColors.accent : Colors.amber[900],
               ),
             ),
           ),
+          if (!isRunning)
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: FilledButton.tonal(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent.withValues(alpha: 0.2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                ),
+                onPressed: () {
+                  ref
+                      .read(focusTimerProvider.notifier)
+                      .resumeSession(primarySession.sessionKey);
+                },
+                child: const Text(
+                  '继续进行',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
           TextButton.icon(
             style: TextButton.styleFrom(
-              foregroundColor: isPaused ? Colors.amber[900] : AppColors.accent,
+              foregroundColor: isRunning ? AppColors.accent : Colors.amber[900],
               backgroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             ),
-            onPressed: _openFocusScreen,
+            onPressed: () => _openFocusScreen(primarySession.sessionKey),
             icon: const Icon(Icons.fullscreen_rounded, size: 18),
-            label: const Text('切入攻克大屏', style: TextStyle(fontWeight: FontWeight.w600)),
+            label: const Text(
+              '切入任务大屏',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -205,7 +256,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               Text(
                 '${displayedTasks.length} 项综合任务',
-                style: const TextStyle(fontSize: 12, color: AppColors.textSecondaryLight),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondaryLight,
+                ),
               ),
             ],
           ),
@@ -231,7 +285,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 4),
                 const Text(
                   '点击右上角“新建计划任务”开始规划吧！',
-                  style: TextStyle(fontSize: 12, color: AppColors.textMutedLight),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMutedLight,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
@@ -254,9 +311,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       case SidebarNavSection.today:
         return tasks.where((t) => t.isScheduledFor(now)).toList();
       case SidebarNavSection.daily:
-        return tasks.where((t) => t.recurrence.type == RecurrenceType.daily).toList();
+        return tasks
+            .where((t) => t.recurrence.type == RecurrenceType.daily)
+            .toList();
       case SidebarNavSection.weekly:
-        return tasks.where((t) => t.recurrence.type == RecurrenceType.weekly).toList();
+        return tasks
+            .where((t) => t.recurrence.type == RecurrenceType.weekly)
+            .toList();
       case SidebarNavSection.all:
         return tasks.where((t) => !t.isArchived).toList();
       case SidebarNavSection.records:
@@ -275,8 +336,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       case SidebarNavSection.all:
         return '所有计划清单总览';
       case SidebarNavSection.records:
-        return '真实专注攻克打卡与历史统计';
+        return '真实专注打卡与历史统计';
     }
   }
 }
-
