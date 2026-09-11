@@ -110,6 +110,20 @@ void main() {
       );
       expect(nonMatchingWeeklyRule.matches(now), false);
     });
+
+    test('状态栏剩余时间显示到分钟格式化算法 (formatRemainingMinutes)', () {
+      expect(AppDateUtils.formatRemainingMinutes(1500), '25分钟');
+      expect(AppDateUtils.formatRemainingMinutes(1499), '25分钟');
+      expect(AppDateUtils.formatRemainingMinutes(1441), '25分钟');
+      expect(AppDateUtils.formatRemainingMinutes(1440), '24分钟');
+      expect(AppDateUtils.formatRemainingMinutes(61), '2分钟');
+      expect(AppDateUtils.formatRemainingMinutes(60), '1分钟');
+      expect(AppDateUtils.formatRemainingMinutes(30), '1分钟');
+      expect(AppDateUtils.formatRemainingMinutes(0), '0分钟');
+      expect(AppDateUtils.formatRemainingMinutes(-10), '0分钟');
+      expect(AppDateUtils.formatRemainingMinutes(3600), '1小时');
+      expect(AppDateUtils.formatRemainingMinutes(5400), '1小时30分钟');
+    });
   });
 }
 

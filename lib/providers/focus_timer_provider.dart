@@ -149,14 +149,33 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerState> {
     super.dispose();
   }
 
+  String? _lastStatusText;
+  bool? _lastIsRunning;
+
+  void _updateStatusIfChanged({
+    required String statusText,
+    required bool isRunning,
+  }) {
+    if (_lastStatusText != statusText || _lastIsRunning != isRunning) {
+      _lastStatusText = statusText;
+      _lastIsRunning = isRunning;
+      StatusBarService.updateStatus(
+        statusText: statusText,
+        isRunning: isRunning,
+      );
+    }
+  }
+
   void _syncStatusBar() {
     final running = state.runningSession;
     if (running != null) {
       final name = running.displayName;
       final timeStr = AppDateUtils.formatSecondsToTime(
+      final timeStr = AppDateUtils.formatRemainingMinutes(
         running.remainingSeconds,
       );
       StatusBarService.updateStatus(
+      _updateStatusIfChanged(
         statusText: '$name $timeStr',
         isRunning: true,
       );
@@ -169,6 +188,25 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerState> {
       );
     } else {
       StatusBarService.updateStatus(statusText: '空闲', isRunning: false);
+      final promptSession = state.sessions.values
+          .where((s) => s.status == FocusTimerStatus.completedPrompt)
+          .firstOrNull;
+      if (promptSession != null) {
+        final name = promptSession.displayName;
+        _updateStatusIfChanged(
+          statusText: '$name (时间已到)',
+          isRunning: false,
+        );
+      } else if (state.pausedSessions.isNotEmpty) {
+        final first = state.pausedSessions.first;
+        final name = first.displayName;
+        _updateStatusIfChanged(
+          statusText: '$name (已暂停)',
+          isRunning: false,
+        );
+      } else {
+        _updateStatusIfChanged(statusText: '空闲', isRunning: false);
+      }
     }
   }
 

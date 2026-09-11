@@ -57,5 +57,20 @@ class AppDateUtils {
     final totalMinutes = (totalSeconds / 60).round();
     return formatMinutes(totalMinutes);
   }
+
+  /// 格式化剩余秒数为分钟显示（向上取整到分钟，如 1500秒 -> "25分钟", 50秒 -> "1分钟", 0秒 -> "0分钟"）
+  static String formatRemainingMinutes(int totalSeconds) {
+    if (totalSeconds <= 0) return '0分钟';
+    final totalMinutes = (totalSeconds + 59) ~/ 60;
+    final hours = totalMinutes ~/ 60;
+    final mins = totalMinutes % 60;
+    if (hours == 0) {
+      return '$mins分钟';
+    } else if (mins == 0) {
+      return '$hours小时';
+    } else {
+      return '$hours小时$mins分钟';
+    }
+  }
 }
 
