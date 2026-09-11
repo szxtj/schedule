@@ -170,24 +170,14 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerState> {
     final running = state.runningSession;
     if (running != null) {
       final name = running.displayName;
-      final timeStr = AppDateUtils.formatSecondsToTime(
       final timeStr = AppDateUtils.formatRemainingMinutes(
         running.remainingSeconds,
       );
-      StatusBarService.updateStatus(
       _updateStatusIfChanged(
         statusText: '$name $timeStr',
         isRunning: true,
       );
-    } else if (state.pausedSessions.isNotEmpty) {
-      final first = state.pausedSessions.first;
-      final name = first.displayName;
-      StatusBarService.updateStatus(
-        statusText: '$name (已暂停)',
-        isRunning: false,
-      );
     } else {
-      StatusBarService.updateStatus(statusText: '空闲', isRunning: false);
       final promptSession = state.sessions.values
           .where((s) => s.status == FocusTimerStatus.completedPrompt)
           .firstOrNull;
